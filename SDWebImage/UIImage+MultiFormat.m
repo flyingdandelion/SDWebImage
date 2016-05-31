@@ -25,7 +25,8 @@
     UIImage *image;
     NSString *imageContentType = [NSData sd_contentTypeForImageData:data];
     if ([imageContentType isEqualToString:@"image/gif"]) {
-        image = [UIImage sd_animatedGIFWithData:data];
+        //image = [UIImage sd_animatedGIFWithData:data];
+        image = [[UIImage alloc] initWithData:data];
     }
 #ifdef SD_WEBP
     else if ([imageContentType isEqualToString:@"image/webp"])
@@ -113,6 +114,39 @@
     return orientation;
 }
 
-
++ (UIImage*)compressImage:(UIImage*)image
+{
+    if(!image)
+    {
+        return nil;
+    }
+    CGFloat imageWidth = image.size.width;
+    CGFloat imageHeight = image.size.height;
+    if (imageWidth*imageHeight < 1024*1024)
+    {
+        return image;
+    }
+    
+    CGRect screenFrame = [[UIScreen mainScreen] bounds];
+    CGFloat width = screenFrame.size.width;
+    CGFloat height = imageHeight/(imageWidth/width);
+    
+    CGFloat widthScale = imageWidth/width;
+    CGFloat heightScale = imageHeight/height;
+    
+    UIGraphicsBeginImageContext(CGSizeMake(width, height));
+    if (widthScale > heightScale)
+    {
+        [image drawInRect:CGRectMake(0, 0, imageWidth /heightScale , height)];
+    }
+    else
+    {
+        [image drawInRect:CGRectMake(0, 0, width , imageHeight /widthScale)];
+    }
+    
+    UIImage *newImage = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return newImage;
+}
 
 @end

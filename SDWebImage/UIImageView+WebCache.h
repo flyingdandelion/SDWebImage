@@ -188,6 +188,8 @@
  */
 - (void)setIndicatorStyle:(UIActivityIndicatorViewStyle)style;
 
+- (void)glip_setImageWithURL:(NSURL *)url placeholderImage:(UIImage *)placeholder options:(SDWebImageOptions)options progress:(SDWebImageDownloaderProgressBlock)progressBlock completed:(GlipSDWebImageCompletionBlock)completedBlock;
+
 @end
 
 

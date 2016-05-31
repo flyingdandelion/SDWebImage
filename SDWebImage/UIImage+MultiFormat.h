@@ -11,5 +11,5 @@
 @interface UIImage (MultiFormat)
 
 + (UIImage *)sd_imageWithData:(NSData *)data;
-
++ (UIImage*)compressImage:(UIImage*)image;
 @end

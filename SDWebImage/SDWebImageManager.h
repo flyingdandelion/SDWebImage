@@ -280,6 +280,14 @@ SDWebImageManager *manager = [SDWebImageManager sharedManager];
  */
 - (NSString *)cacheKeyForURL:(NSURL *)url;
 
+
+typedef void(^GlipSDWebImageCompletionBlock)(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, NSURL *imageURL, NSInteger imageType);
+typedef void(^GlipSDWebImageCompletionWithFinishedBlock)(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL, NSInteger imageType);
+
+- (id <SDWebImageOperation>)glipDownloadImageWithURL:(NSURL *)url
+                                             options:(SDWebImageOptions)options
+                                            progress:(SDWebImageDownloaderProgressBlock)progressBlock
+                                           completed:(GlipSDWebImageCompletionWithFinishedBlock)completedBlock;
 @end
 
 

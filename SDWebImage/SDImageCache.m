@@ -10,6 +10,7 @@
 #import "SDWebImageDecoder.h"
 #import "UIImage+MultiFormat.h"
 #import <CommonCrypto/CommonDigest.h>
+#import "NSData+ImageContentType.h"
 
 // See https://github.com/rs/SDWebImage/pull/1141 for discussion
 @interface AutoPurgeCache : NSCache
@@ -312,7 +313,16 @@ FOUNDATION_STATIC_INLINE NSUInteger SDCacheCostForImage(UIImage *image) {
 }
 
 - (UIImage *)imageFromMemoryCacheForKey:(NSString *)key {
-    return [self.memCache objectForKey:key];
+    id imageCache = [self.memCache objectForKey:key];
+    if(imageCache && [imageCache isKindOfClass:[UIImage class]])
+    {
+        return  imageCache;
+    }
+    else if(imageCache && [imageCache isKindOfClass:[NSData class]])
+    {
+        return  [UIImage imageWithData:imageCache];
+    }
+    return nil;
 }
 
 - (UIImage *)imageFromDiskCacheForKey:(NSString *)key {
@@ -653,5 +663,77 @@ FOUNDATION_STATIC_INLINE NSUInteger SDCacheCostForImage(UIImage *image) {
         }
     });
 }
+
+#pragma  mark -
+- (id)glipImageFromMemoryCacheForKey:(NSString *)key {
+    return [self.memCache objectForKey:key];
+}
+
+
+- (NSOperation *)glipQueryDiskCacheForKey:(NSString *)key done:(GlipSDWebImageQueryCompletedBlock)doneBlock {
+    if (!doneBlock) {
+        return nil;
+    }
+    
+    if (!key) {
+        doneBlock(nil, nil,SDImageCacheTypeNone, -1);
+        return nil;
+    }
+    
+    // First check the in-memory cache...
+    //UIImage *image = [self imageFromMemoryCacheForKey:key];
+    id cachedata = [self glipImageFromMemoryCacheForKey:key];
+    if(cachedata && [cachedata isKindOfClass:[UIImage class]])
+    {
+        doneBlock((UIImage*)cachedata, nil, SDImageCacheTypeMemory, 0);
+        return nil;
+    }
+    
+    if (cachedata && [cachedata isKindOfClass:[NSData class]])
+    {
+        doneBlock(nil, (NSData*)cachedata, SDImageCacheTypeMemory, 1);
+        return nil;
+    }
+    
+    NSOperation *operation = [NSOperation new];
+    dispatch_async(self.ioQueue, ^{
+        if (operation.isCancelled) {
+            return;
+        }
+        
+        @autoreleasepool {
+            NSData *data = [self diskImageDataBySearchingAllPathsForKey:key];
+            UIImage *diskImage = nil;
+            NSInteger imageType = -1;
+            if (data)
+            {
+                NSString *imageContentType = [NSData sd_contentTypeForImageData:data];
+                if ([imageContentType isEqualToString:@"image/gif"])
+                {
+                    [self.memCache setObject:data forKey:key cost:data.length];
+                    imageType = 1;
+                }
+                else
+                {
+                    data = nil;
+                    diskImage = [self diskImageForKey:key];
+                    if (diskImage && self.shouldCacheImagesInMemory) {
+                        NSUInteger cost = SDCacheCostForImage(diskImage);
+                        [self.memCache setObject:diskImage forKey:key cost:cost];
+                    }
+                    imageType = 0;
+
+                }
+            }
+
+            dispatch_async(dispatch_get_main_queue(), ^{
+                doneBlock(diskImage, data, SDImageCacheTypeDisk, imageType);
+            });
+        }
+    });
+    
+    return operation;
+}
+
 
 @end

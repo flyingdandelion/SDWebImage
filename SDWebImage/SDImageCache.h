@@ -277,4 +277,7 @@ typedef void(^SDWebImageCalculateSizeBlock)(NSUInteger fileCount, NSUInteger tot
  */
 - (NSString *)defaultCachePathForKey:(NSString *)key;
 
+typedef void(^GlipSDWebImageQueryCompletedBlock)(UIImage *image, NSData *data, SDImageCacheType cacheType, NSInteger imageType);
+- (NSOperation *)glipQueryDiskCacheForKey:(NSString *)key done:(GlipSDWebImageQueryCompletedBlock)doneBlock;
+
 @end

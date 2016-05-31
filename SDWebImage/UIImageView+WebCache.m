@@ -147,6 +147,66 @@ static char TAG_ACTIVITY_SHOW;
 
 
 #pragma mark -
+- (void)glip_setImageWithURL:(NSURL *)url placeholderImage:(UIImage *)placeholder options:(SDWebImageOptions)options progress:(SDWebImageDownloaderProgressBlock)progressBlock completed:(GlipSDWebImageCompletionBlock)completedBlock {
+    [self sd_cancelCurrentImageLoad];
+    objc_setAssociatedObject(self, &imageURLKey, url, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    
+    if (!(options & SDWebImageDelayPlaceholder)) {
+        dispatch_main_async_safe(^{
+            self.image = placeholder;
+        });
+    }
+    
+    if (url) {
+        
+        // check if activityView is enabled or not
+        if ([self showActivityIndicatorView]) {
+            [self addActivityIndicator];
+        }
+        
+        __weak __typeof(self)wself = self;
+        id <SDWebImageOperation> operation = [SDWebImageManager.sharedManager glipDownloadImageWithURL:url options:options progress:progressBlock completed:^(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL, NSInteger imagetype) {
+            [wself removeActivityIndicator];
+            if (!wself) return;
+            dispatch_main_sync_safe(^{
+                if (!wself) return;
+                if ((data || image) && (options & SDWebImageAvoidAutoSetImage) && completedBlock)
+                {
+                    completedBlock(image, data, error, cacheType, url, imagetype);
+                    return;
+                }
+                else if (data)
+                {
+                    completedBlock(image, data, error, cacheType, url, imagetype);
+                    return;
+                }
+                else if (image) {
+                    wself.image = image;
+                    [wself setNeedsLayout];
+                } else {
+                    if ((options & SDWebImageDelayPlaceholder)) {
+                        wself.image = placeholder;
+                        [wself setNeedsLayout];
+                    }
+                }
+                if (completedBlock && finished) {
+                    completedBlock(image, data, error, cacheType, url,imagetype);
+                }
+            });
+        }];
+        [self sd_setImageLoadOperation:operation forKey:@"UIImageViewImageLoad"];
+    } else {
+        dispatch_main_async_safe(^{
+            [self removeActivityIndicator];
+            if (completedBlock) {
+                NSError *error = [NSError errorWithDomain:SDWebImageErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey : @"Trying to load a nil url"}];
+                completedBlock(nil, nil, error, SDImageCacheTypeNone, url, -1);
+            }
+        });
+    }
+}
+
+#pragma mark -
 - (UIActivityIndicatorView *)activityIndicator {
     return (UIActivityIndicatorView *)objc_getAssociatedObject(self, &TAG_ACTIVITY_INDICATOR);
 }
